@@ -82,17 +82,19 @@ def migrate(cur, path: str, table_name: str, options=None):
                     all_rows.append(cur.mogrify(value_format, row).decode('utf-8'))
                 # print(header, all_rows)
 
-
             else:
                 # print(worksheet.row_values(12))
 
-                df = pd.read_excel(path, sheet_name=sheet_name)
+                # df = pd.read_excel(path, sheet_name=sheet_name)
                 # print(df)
-                header = df.columns
+                header = worksheet.row_values(0)
+                # header = next(data)
+                # print(header)
                 value_format = "(" + ', '.join(['%s'] * len(header)) + ")"
                 all_rows = []
-                for i, row in df.iterrows():
-                    all_rows.append(cur.mogrify(value_format, row).decode('utf-8'))
+                for i in range(1, worksheet.nrows):
+                    all_rows.append(cur.mogrify(value_format, worksheet.row_values(i)).decode('utf-8'))
+                # print(all_rows)
 
             cnt = 0
             trans_header = []
