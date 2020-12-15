@@ -1,0 +1,10 @@
+data
+venv
+.idea
+
+*.sql
+*.csv
+*.json
+*.pyc
+
+!datamodel.csv
