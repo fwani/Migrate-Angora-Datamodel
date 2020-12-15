@@ -45,7 +45,7 @@ def transform_column_name(name: str) -> str:
     name = re.sub(r'(^\d+|^_)', r'col_\g<1>', name)
     name = re.sub(r'_{2,}', '_', name)
     name = re.sub(r'_+$', '', name)
-    return name
+    return name.lower()
 
 
 def get_schema(s: pd.Series) -> pd.Series:
