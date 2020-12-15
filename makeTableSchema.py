@@ -48,6 +48,12 @@ def transform_column_name(name: str) -> str:
     return name.lower()
 
 
+def transform_column_type(_type: str) -> str:
+    if _type.lower() in ['timestamp', 'date']:
+        _type = 'text'
+    return _type
+
+
 def get_schema(s: pd.Series) -> pd.Series:
     """To get table schema from fields of Datamodel of Angora
 
@@ -67,7 +73,7 @@ def get_schema(s: pd.Series) -> pd.Series:
 
 
 def make_query_pgsql(df: pd.DataFrame) -> pd.Series:
-    base_query = 'DROP TABLE IF EXISTS {0}; CREATE TABLE {0} ({1});'
+    base_query = 'DROP TABLE IF EXISTS "{0}"; CREATE TABLE "{0}" ({1});'
     return df[['table_name', 'schema']].apply(lambda x: base_query.format(x[0], x[1]), axis=1)
 
 
@@ -93,7 +99,7 @@ def run(args):
                          header=False,
                          index=False,
                          quotechar='\"',
-                         quoting=csv.QUOTE_MINIMAL,
+                         quoting=csv.QUOTE_NONE,
                          encoding='utf-8')
 
 

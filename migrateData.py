@@ -27,85 +27,96 @@ def make_excel_range(cells):
     return cols, rows
 
 
+def get_header(header):
+    trans_header = []
+    cnt = 0
+    for h in header:
+        if not h:
+            h = '_c{}'.format(cnt)
+            cnt += 1
+        trans_header.append('"{}"'.format(transform_column_name(h)))
+    return trans_header
+
+
+def get_real_index(cur, table_name, header):
+    real_header_index = []
+    for idx, h in enumerate(header):
+        try:
+            cur.execute('SELECT {} FROM "{}"'.format(h, table_name))
+            real_header_index.append(idx)
+        except:
+            pass
+    return real_header_index
+
+
 def migrate(cur, path: str, table_name: str, options=None):
     if os.path.isfile(path):
-        base_query = 'INSERT INTO {0}({1}) VALUES {2};'
+        base_query = 'INSERT INTO "{0}"({1}) VALUES {2};'
         if path.endswith('csv'):
             with open(path, 'r', encoding='utf-8-sig') as fr:
                 reader = csv.reader(fr)
-                header = next(reader)
+                header = get_header(next(reader))
+                real_index = get_real_index(cur, table_name, header)
 
-                value_format = "(" + ', '.join(['%s'] * len(header)) + ")"
+                value_format = "(" + ', '.join(['%s'] * len(real_index)) + ")"
                 all_rows = []
                 for row in reader:
+                    row = [row[i] for i in real_index]
                     all_rows.append(cur.mogrify(value_format, row).decode('utf-8'))
-
-                cnt = 0
-                trans_header = []
-                for h in header:
-                    if not h.strip():
-                        h = '_c{}'.format(cnt)
-                        cnt += 1
-                    trans_header.append('"{}"'.format(transform_column_name(h)))
-                print(table_name, trans_header)
-
-                cur.execute(base_query.format(table_name, ','.join(trans_header), ','.join(all_rows)))
-                # cur.commit()
         else:
             # print(path, options)
             sheet_name = options.get('sheet_name', None)
             if not sheet_name:
-                sheet_name = 'Sheet1'
+                sheet_name = None
             cells = options.get('cells', None)
             if not cells:
                 cells = None
             else:
                 cells = cells.upper()
-            # print(sheet_name, cells)
+            print(sheet_name, cells)
 
             workbook = xlrd.open_workbook(path)
-            worksheet = workbook.sheet_by_name(sheet_name)
+            if sheet_name:
+                worksheet = workbook.sheet_by_name(sheet_name)
+            else:
+                worksheet = workbook.sheet_by_index(0)
             cols, rows = make_excel_range(cells)
+            print(cols, rows)
             if cols and rows:
                 data = []
                 for row in rows:
                     tmp = []
                     for col in cols:
                         # print(row, col)
+                        # print(worksheet.cell_value(row, col))
                         tmp.append(worksheet.cell_value(row, col))
                     data.append(tmp)
                 # print(data)
-                header = data[0]
-                value_format = "(" + ', '.join(['%s'] * len(header)) + ")"
+                header = get_header(data[0])
+                real_index = get_real_index(cur, table_name, header)
+                value_format = "(" + ', '.join(['%s'] * len(real_index)) + ")"
                 all_rows = []
                 for row in data[1:]:
+                    row = [row[i] for i in real_index]
                     all_rows.append(cur.mogrify(value_format, row).decode('utf-8'))
                 # print(header, all_rows)
 
             else:
                 # print(worksheet.row_values(12))
 
-                # df = pd.read_excel(path, sheet_name=sheet_name)
-                # print(df)
-                header = worksheet.row_values(0)
+                header = get_header(worksheet.row_values(0))
+                real_index = get_real_index(cur, table_name, header)
                 # header = next(data)
                 # print(header)
-                value_format = "(" + ', '.join(['%s'] * len(header)) + ")"
+                value_format = "(" + ', '.join(['%s'] * len(real_index)) + ")"
                 all_rows = []
                 for i in range(1, worksheet.nrows):
-                    all_rows.append(cur.mogrify(value_format, worksheet.row_values(i)).decode('utf-8'))
+                    row = worksheet.row_values(i)
+                    row = [row[i] for i in real_index]
+                    all_rows.append(cur.mogrify(value_format, row).decode('utf-8'))
                 # print(all_rows)
 
-            cnt = 0
-            trans_header = []
-            for h in header:
-                if not h:
-                    h = '_c{}'.format(cnt)
-                    cnt += 1
-                trans_header.append('"{}"'.format(transform_column_name(h)))
-            print(table_name, trans_header)
-
-            cur.execute(base_query.format(table_name, ','.join(trans_header), ','.join(all_rows)))
+        cur.execute(base_query.format(table_name, ','.join([header[i] for i in real_index]), ','.join(all_rows)))
 
 
 def run(args):
